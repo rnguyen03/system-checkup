@@ -18,6 +18,18 @@ away behind "Details" for anyone who wants it.
 | Unread Arch news | A manual step might be required before your next update |
 | Recent log activity | A searchable, plain feed of recent errors (not a firehose — filtered to error-and-worse by default, since warning-level journal entries are commonly dominated by harmless firewall/driver noise) |
 
+**Security Glance** (opt-in, off by default — `Enable Security Glance`
+setting): five more read-only checks, deliberately scoped to what's
+meaningful on a personal desktop rather than server-style security auditing.
+
+| Item | Plain-language framing |
+| --- | --- |
+| Known package vulnerabilities | Do any installed packages have known security issues? (needs `arch-audit`) |
+| Firewall status | Is something blocking unsolicited incoming connections? |
+| Listening ports | What's accepting connections from beyond your own machine? (informational — most hits here are routine app behavior like media/game discovery, never flagged as a warning) |
+| SSH exposure | Is remote login enabled on this machine? |
+| Failed sudo attempts | Any failed `sudo` attempts in the last 7 days? |
+
 All of the above are **read-only** — nothing needs your password to check.
 Only the "fix it" buttons (removing orphans, cleaning the package cache,
 vacuuming old logs, marking Arch news as read) run via `pkexec`, one
@@ -35,6 +47,8 @@ since merging config files automatically can break things.
    and `informant` (for the Arch-news check). Anything that depends on a
    missing tool shows up as a neutral "unavailable" state with an install
    hint — the plugin is fully useful without them, just narrower.
+4. Optional: turn on `Enable Security Glance` in settings, and install
+   `arch-audit` for the vulnerability check.
 
 ## Plugin
 
@@ -50,12 +64,14 @@ since merging config files automatically can break things.
 - (optional) `pacman-contrib` — enables one-click package-cache cleanup
   (`paccache`).
 - (optional) `informant` — enables the unread-Arch-news check.
+- (optional) `arch-audit` — enables the Security Glance vulnerability check.
 
 ## Settings
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
 | `poll-interval-minutes` | `int` | `15` | How often to re-run the checklist in the background. |
+| `enable-security-glance` | `bool` | `false` | Adds the Security Glance section (see above). All its checks are read-only. |
 
 ## Notes
 
@@ -75,6 +91,23 @@ since merging config files automatically can break things.
 - The recent-log-activity feed is fetched on request (opening the panel, or
   the section's own refresh button), not on every background check, to avoid
   needless work.
+- Every check runs one at a time, not concurrently: confirmed live that
+  firing 9 checks' `runAsync` calls at once silently dropped the last 2 —
+  no error, their results just never arrived. An earlier isolated test of 8
+  concurrent calls had all completed fine, so the exact threshold (if
+  there even is a single one) isn't known; running sequentially sidesteps
+  the question entirely.
+- Firewall status is read from `/etc/nftables.conf` directly, not
+  `nft list ruleset` (needs root) or `systemctl is-active nftables` (confirmed
+  live to report "inactive" on this machine even while nftables was actively
+  dropping packets — something other than `nftables.service` had loaded the
+  rules). Reading the static config is the one signal that's both
+  unprivileged and accurate.
+- Listening ports and failed-sudo-attempts both needed a narrower query than
+  the obvious one: `ss` needs `-p` for process names (works unprivileged for
+  your own processes) but a broad `journalctl -p info --since "-7 days"` scan
+  timed out outright on a heavily-logged machine — filtering on an indexed
+  field first (`_COMM=sudo`) brought a 14-day query down to 0.15s.
 
 ## Licensing
 

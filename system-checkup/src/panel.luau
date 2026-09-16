@@ -2,10 +2,12 @@
 local STATE_KEY = "checkup_state"
 local REQUEST_KEY = "checkup_request"
 
-local SECTION_ORDER = { "health", "maintenance" }
+local SECTION_ORDER = { "health", "maintenance", "security" }
 local ITEM_ORDER = {
     ["failed-services"] = 1, ["journal-size"] = 2,
     ["pacnew"] = 3, ["orphans"] = 4, ["cache-size"] = 5, ["arch-news"] = 6,
+    ["vulnerable-packages"] = 7, ["firewall"] = 8, ["listening-ports"] = 9,
+    ["ssh-exposure"] = 10, ["failed-logins"] = 11,
 }
 
 --- state

@@ -8,6 +8,7 @@
   "button.undismiss": "Un-dismiss",
   "section.health": "System Health",
   "section.maintenance": "Maintenance Checklist",
+  "section.security": "Security Glance",
   "section.log-activity": "Recent Log Activity",
   "empty-state.log-initial": "Click refresh to check recent log activity.",
   "empty-state.log-loading": "Checking recent log activity…",
@@ -57,12 +58,55 @@
       "unavailable-detail": "Install 'informant' to get warned before an update needs a manual step.",
       "failed-title": "Couldn't check Arch news",
       "failed-detail": "The news feed check failed (often just a temporary network hiccup) — it'll try again on the next check."
+    },
+    "vulnerable-packages": {
+      "ok-title": "No known vulnerabilities",
+      "ok-detail": "None of your installed packages have known security issues.",
+      "warn-title": "{count} package(s) with known vulnerabilities",
+      "warn-detail": "Updating these packages would fix known security issues in them.",
+      "unavailable-title": "Vulnerability check unavailable",
+      "unavailable-detail": "Install 'arch-audit' to check installed packages against known CVEs.",
+      "failed-title": "Couldn't check for vulnerabilities",
+      "failed-detail": "The vulnerability check failed — it'll try again on the next check."
+    },
+    "firewall": {
+      "ok-title": "Firewall is active",
+      "ok-detail": "nftables is configured to block unsolicited incoming connections.",
+      "configured-title": "Firewall is configured",
+      "configured-detail": "A firewall config exists but doesn't look like a default-deny setup — worth a look if you're not sure what it allows.",
+      "none-title": "No firewall configured",
+      "none-detail": "Nothing is blocking unsolicited incoming connections. Consider setting one up if this machine is ever on an untrusted network.",
+      "other-tool-title": "Firewall check unavailable",
+      "other-tool-detail": "A firewall tool is installed, but this plugin only reads nftables config directly right now."
+    },
+    "listening-ports": {
+      "none-title": "Nothing listening beyond your own machine",
+      "none-detail": "No apps are accepting connections from outside.",
+      "some-title": "{count} port(s) open to more than just your own machine",
+      "some-detail": "Usually normal app behavior (media/game discovery, remote-play, etc.) — see Details for what's listening. Worth a second look only if something surprises you.",
+      "unknown-process": "unknown process"
+    },
+    "ssh-exposure": {
+      "ok-title": "SSH is not running",
+      "ok-detail": "Nothing to expose.",
+      "warn-title": "SSH is running",
+      "warn-detail": "Remote login is enabled on this machine — worth confirming that's intended and that you're using a strong key or password."
+    },
+    "failed-logins": {
+      "ok-title": "No failed sudo attempts recently",
+      "ok-detail": "Nothing suspicious in the last 7 days.",
+      "warn-title": "{count} failed sudo attempt(s) in the last 7 days",
+      "warn-detail": "Usually just a mistyped password. Worth a second look if you don't recognize the activity."
     }
   },
   "settings": {
     "poll-interval-minutes": {
       "label": "Check interval (minutes)",
       "description": "How often to re-run the maintenance checklist in the background."
+    },
+    "enable-security-glance": {
+      "label": "Enable Security Glance",
+      "description": "Adds a section checking for known package vulnerabilities (needs 'arch-audit'), firewall status, open ports, SSH exposure, and failed sudo attempts. Off by default; all checks are read-only."
     }
   }
 }

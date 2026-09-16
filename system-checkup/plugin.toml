@@ -1,13 +1,13 @@
 id           = "rnguyen03/system-checkup"
 name         = "System Checkup"
-version      = "0.1.1"
+version      = "0.2.0"
 plugin_api   = 22
 author       = "rnguyen03"
 license      = "MIT"
 icon         = "clipboard-check"
 description  = "A plain-language maintenance checklist for Arch Linux: failed services, log size, unmerged configs, orphaned packages, and more."
 tags         = ["bar", "panel", "service", "system", "productivity", "utility"]
-dependencies = ["jq", "pkexec", "pacman-contrib", "informant"]
+dependencies = ["jq", "pkexec", "pacman-contrib", "informant", "arch-audit"]
 
 [[setting]]
 key     = "poll-interval-minutes"
@@ -16,6 +16,13 @@ label_key = "settings.poll-interval-minutes.label"
 description_key = "settings.poll-interval-minutes.description"
 default = 15
 min = 1
+
+[[setting]]
+key     = "enable-security-glance"
+type    = "bool"
+label_key = "settings.enable-security-glance.label"
+description_key = "settings.enable-security-glance.description"
+default = false
 
 [[widget]]
 id = "widget"

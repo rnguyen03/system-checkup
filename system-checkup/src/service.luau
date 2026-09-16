@@ -135,7 +135,7 @@ end
 
 -- ── Checks ──────────────────────────────────────────────────────────────────
 
-local function checkFailedServices()
+local function checkFailedServices(onDone)
     noctalia.runAsync("systemctl --failed --no-pager --plain", function(result)
         local out = result.stdout or ""
         if out:find("0 loaded units listed%.") then
@@ -156,10 +156,11 @@ local function checkFailedServices()
                 { raw = out })
         end
         publish()
+        if onDone then onDone() end
     end)
 end
 
-local function checkJournalSize()
+local function checkJournalSize(onDone)
     noctalia.runAsync("journalctl --disk-usage 2>/dev/null", function(result)
         local out = result.stdout or ""
         local sizeText = out:match("take up ([%d%.]+%s*[KMGT]?) in")
@@ -179,10 +180,11 @@ local function checkJournalSize()
                 status ~= "ok" and { actionId = "vacuum-logs", actionLabel = tr("action.vacuum-logs") } or nil)
         end
         publish()
+        if onDone then onDone() end
     end)
 end
 
-local function checkPacnew()
+local function checkPacnew(onDone)
     noctalia.runAsync("find /etc -name '*.pacnew' -o -name '*.pacsave' 2>/dev/null", function(result)
         local files = {}
         for line in (result.stdout or ""):gmatch("[^\r\n]+") do
@@ -195,10 +197,11 @@ local function checkPacnew()
             count > 0 and tr("item.pacnew.warn-detail") or tr("item.pacnew.ok-detail"),
             count > 0 and { raw = table.concat(files, "\n") } or nil)
         publish()
+        if onDone then onDone() end
     end)
 end
 
-local function checkOrphans()
+local function checkOrphans(onDone)
     noctalia.runAsync("pacman -Qtdq 2>/dev/null", function(result)
         local names = {}
         for line in (result.stdout or ""):gmatch("[^\r\n]+") do
@@ -211,10 +214,11 @@ local function checkOrphans()
             count > 0 and table.concat(names, ", ") or tr("item.orphans.ok-detail"),
             count > 0 and { actionId = "remove-orphans", actionLabel = tr("action.remove-orphans") } or nil)
         publish()
+        if onDone then onDone() end
     end)
 end
 
-local function checkCacheSize()
+local function checkCacheSize(onDone)
     noctalia.runAsync("du -sh /var/cache/pacman/pkg 2>/dev/null", function(result)
         local sizeText = nil
         for line in (result.stdout or ""):gmatch("[^\r\n]+") do
@@ -238,13 +242,15 @@ local function checkCacheSize()
                 (status ~= "ok" and hasPaccache) and { actionId = "clean-cache", actionLabel = tr("action.clean-cache") } or nil)
         end
         publish()
+        if onDone then onDone() end
     end)
 end
 
-local function checkArchNews()
+local function checkArchNews(onDone)
     if not noctalia.commandExists("informant") then
         setItem("arch-news", "maintenance", "unavailable", tr("item.arch-news.unavailable-title"), tr("item.arch-news.unavailable-detail"))
         publish()
+        if onDone then onDone() end
         return
     end
     -- Confirmed live: informant's exit code IS the unread count (its own
@@ -272,17 +278,180 @@ local function checkArchNews()
                 { actionId = "mark-news-read", actionLabel = tr("action.mark-news-read") })
         end
         publish()
+        if onDone then onDone() end
+    end)
+end
+
+-- ── Security glance (opt-in, off by default) ────────────────────────────────
+-- All five checks are read-only, no pkexec -- deciding to change firewall
+-- rules, SSH config, etc. is a judgment call for the user elsewhere, not a
+-- button here.
+
+local function checkVulnerablePackages(onDone)
+    if not noctalia.commandExists("arch-audit") then
+        setItem("vulnerable-packages", "security", "unavailable", tr("item.vulnerable-packages.unavailable-title"), tr("item.vulnerable-packages.unavailable-detail"))
+        publish()
+        if onDone then onDone() end
+        return
+    end
+    -- Not verified against the real tool (not installed on the machine this
+    -- was built on) -- learned from the informant check to be conservative
+    -- here: count stdout lines rather than trust a specific flag's exact
+    -- output shape or the exit code, and fall back to "unavailable" on
+    -- anything that looks like a tool-level failure rather than asserting a
+    -- false "0 vulnerabilities". Spot-check this once arch-audit is
+    -- installed.
+    noctalia.runAsync("arch-audit 2>&1", function(result)
+        local failed = (result.stderr or ""):find("[Ee]rror") ~= nil
+        if failed then
+            setItem("vulnerable-packages", "security", "unavailable", tr("item.vulnerable-packages.failed-title"), tr("item.vulnerable-packages.failed-detail"))
+            publish()
+            if onDone then onDone() end
+            return
+        end
+        local lines = {}
+        for line in (result.stdout or ""):gmatch("[^\r\n]+") do
+            table.insert(lines, line)
+        end
+        local count = #lines
+        setItem("vulnerable-packages", "security",
+            count > 0 and "warn" or "ok",
+            count > 0 and tr("item.vulnerable-packages.warn-title", { count = count }) or tr("item.vulnerable-packages.ok-title"),
+            count > 0 and tr("item.vulnerable-packages.warn-detail") or tr("item.vulnerable-packages.ok-detail"),
+            count > 0 and { raw = table.concat(lines, "\n") } or nil)
+        publish()
+        if onDone then onDone() end
+    end)
+end
+
+local function checkFirewall(onDone)
+    -- Confirmed live: `nft list ruleset` (the accurate way to read the
+    -- *running* ruleset) needs root, and `systemctl is-active nftables`
+    -- is unreliable here -- it reports "inactive" even though this
+    -- machine's rules ARE loaded and actively dropping packets (confirmed
+    -- separately via kernel log nft-drop-default entries), because
+    -- something other than nftables.service loaded them. Reading the
+    -- static config file directly is the one signal that's both
+    -- unprivileged and actually matched reality on this machine.
+    noctalia.runAsync("cat /etc/nftables.conf 2>/dev/null", function(result)
+        local content = result.stdout or ""
+        if content:find("policy drop") then
+            setItem("firewall", "security", "ok", tr("item.firewall.ok-title"), tr("item.firewall.ok-detail"))
+        elseif content ~= "" then
+            setItem("firewall", "security", "warn", tr("item.firewall.configured-title"), tr("item.firewall.configured-detail"))
+        elseif noctalia.commandExists("ufw") or noctalia.commandExists("firewall-cmd") then
+            setItem("firewall", "security", "unavailable", tr("item.firewall.other-tool-title"), tr("item.firewall.other-tool-detail"))
+        else
+            setItem("firewall", "security", "warn", tr("item.firewall.none-title"), tr("item.firewall.none-detail"))
+        end
+        publish()
+        if onDone then onDone() end
+    end)
+end
+
+local function checkListeningPorts(onDone)
+    -- Deliberately informational, never warn/bad: confirmed live that most
+    -- non-loopback listeners on a normal desktop are completely routine app
+    -- behavior (Spotify Connect, Steam remote-play, mDNS) -- flagging them
+    -- as a warning would be exactly the false-alarm noise this plugin is
+    -- designed to avoid. TCP only (not UDP): most UDP hits here are
+    -- discovery/broadcast protocols that are even less meaningful as a
+    -- "security" signal.
+    -- -p (process names) confirmed live to work unprivileged for the
+    -- current user's own listeners, which is all that matters here.
+    noctalia.runAsync("ss -tlnpH 2>/dev/null", function(result)
+        local names = {}
+        local nonLoopback = 0
+        for line in (result.stdout or ""):gmatch("[^\r\n]+") do
+            local addr = line:match("%S+%s+%d+%s+%d+%s+(%S+):%d+")
+            local proc = line:match('users:%(%("([^"]+)"')
+            if addr and addr ~= "127.0.0.1" and addr ~= "[::1]" and not addr:match("^127%.") then
+                nonLoopback += 1
+                table.insert(names, proc or tr("item.listening-ports.unknown-process"))
+            end
+        end
+        setItem("listening-ports", "security", "ok",
+            nonLoopback > 0 and tr("item.listening-ports.some-title", { count = nonLoopback }) or tr("item.listening-ports.none-title"),
+            nonLoopback > 0 and tr("item.listening-ports.some-detail") or tr("item.listening-ports.none-detail"),
+            nonLoopback > 0 and { raw = table.concat(names, ", ") } or nil)
+        publish()
+        if onDone then onDone() end
+    end)
+end
+
+local function checkSshExposure(onDone)
+    noctalia.runAsync("systemctl is-active sshd 2>/dev/null", function(result)
+        local active = (result.stdout or ""):find("^active") ~= nil
+        if active then
+            setItem("ssh-exposure", "security", "warn", tr("item.ssh-exposure.warn-title"), tr("item.ssh-exposure.warn-detail"))
+        else
+            setItem("ssh-exposure", "security", "ok", tr("item.ssh-exposure.ok-title"), tr("item.ssh-exposure.ok-detail"))
+        end
+        publish()
+        if onDone then onDone() end
+    end)
+end
+
+local function checkFailedLogins(onDone)
+    -- Confirmed live: filtering on _COMM at the journalctl level (an
+    -- indexed field) is fast (0.15s over 14 days); a broad `-p info` time
+    -- range scan over this machine's journal volume timed out entirely.
+    -- Never widen this to a bare priority/time-range scan without an
+    -- indexed field filter alongside it.
+    -- jq -s (slurp) is required: journalctl -o json emits one JSON object
+    -- per line, not a single array, so `.[]` without slurping fails on
+    -- every line (confirmed live: "Cannot index string with string").
+    noctalia.runAsync('journalctl _COMM=sudo --since "-7 days" -o json --no-pager 2>/dev/null | jq -s -r '
+        .. shellQuote('[.[] | select(.MESSAGE // "" | test("authentication failure"; "i"))] | length'),
+        function(result)
+            local count = tonumber((result.stdout or ""):match("%d+")) or 0
+            setItem("failed-logins", "security",
+                count > 0 and "warn" or "ok",
+                count > 0 and tr("item.failed-logins.warn-title", { count = count }) or tr("item.failed-logins.ok-title"),
+                count > 0 and tr("item.failed-logins.warn-detail") or tr("item.failed-logins.ok-detail"))
+            publish()
+            if onDone then onDone() end
+        end)
+end
+
+-- Confirmed live: firing all checks concurrently drops some silently -- with
+-- 9 real runAsync calls in flight at once (Phase 1's 6 plus 3 of Phase 2's
+-- security checks; the other 2 security checks never even got their
+-- `arch-audit`/no-op branches involved), the last two in call order
+-- (checkSshExposure, checkFailedLogins) never had their callbacks fire at
+-- all -- no error, their published items just stayed nil forever. This
+-- contradicted an earlier isolated test of 8 concurrent runAsync calls that
+-- all completed fine, so the safe, empirically-justified fix is running
+-- every check one at a time rather than trying to find the exact real
+-- threshold.
+local function runChecksSequentially(checks, index, onAllDone)
+    index = index or 1
+    local check = checks[index]
+    if check == nil then
+        if onAllDone then onAllDone() end
+        return
+    end
+    check(function()
+        runChecksSequentially(checks, index + 1, onAllDone)
     end)
 end
 
 local function runAllChecks()
-    checkFailedServices()
-    checkJournalSize()
-    checkPacnew()
-    checkOrphans()
-    checkCacheSize()
-    checkArchNews()
-    checkedAt = os.date("%H:%M:%S")
+    local checks = {
+        checkFailedServices, checkJournalSize, checkPacnew,
+        checkOrphans, checkCacheSize, checkArchNews,
+    }
+    if cfg("enable-security-glance", false) == true then
+        table.insert(checks, checkVulnerablePackages)
+        table.insert(checks, checkFirewall)
+        table.insert(checks, checkListeningPorts)
+        table.insert(checks, checkSshExposure)
+        table.insert(checks, checkFailedLogins)
+    end
+    runChecksSequentially(checks, 1, function()
+        checkedAt = os.date("%H:%M:%S")
+        publish()
+    end)
 end
 
 -- ── Recent log activity (on request only -- continuous polling would just be

@@ -35,7 +35,13 @@ local function render()
     local children
     if count > 0 then
         children = {
-            ui.glyph({ name = "alert-triangle", color = "warning" }),
+            -- "warning" is a valid glyph color in panels (confirmed live)
+            -- but not in bar widgets -- confirmed live via a real "unknown
+            -- color 'warning'" warning, and no bar widget anywhere in the
+            -- community-plugins catalog uses it either. "error" is used
+            -- successfully by several (network-toolkit, procmon,
+            -- screen-toolkit), so that's the safe choice here.
+            ui.glyph({ name = "alert-triangle", color = "error" }),
             ui.label({ text = tostring(count), fontSize = 12 }),
         }
     else
