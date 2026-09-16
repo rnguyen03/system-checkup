@@ -1,0 +1,66 @@
+{
+  "title": "System Checkup",
+  "field.checked-at": "checked {time}",
+  "field.search-log": "Search recent log activity",
+  "button.details": "Details",
+  "button.hide-details": "Hide details",
+  "button.dismiss": "Dismiss",
+  "button.undismiss": "Un-dismiss",
+  "section.health": "System Health",
+  "section.maintenance": "Maintenance Checklist",
+  "section.log-activity": "Recent Log Activity",
+  "empty-state.log-initial": "Click refresh to check recent log activity.",
+  "empty-state.log-loading": "Checking recent log activity…",
+  "empty-state.log-none": "No matching entries.",
+  "action.vacuum-logs": "Clean up",
+  "action.remove-orphans": "Remove",
+  "action.clean-cache": "Clean up",
+  "action.mark-news-read": "Mark read",
+  "item": {
+    "failed-services": {
+      "ok-title": "No failed services",
+      "ok-detail": "Nothing is quietly broken.",
+      "bad-title": "{count} service(s) failed to start"
+    },
+    "journal-size": {
+      "title": "System logs are using {size}",
+      "ok-detail": "This is normal — no action needed.",
+      "action-detail": "Your logs are taking up a fair amount of space. Cleaning up older entries is safe.",
+      "unavailable-title": "Log size unknown",
+      "unavailable-detail": "Couldn't read log disk usage right now."
+    },
+    "pacnew": {
+      "ok-title": "No unmerged config files",
+      "ok-detail": "Nothing to merge right now.",
+      "warn-title": "{count} config file(s) need a look",
+      "warn-detail": "An update changed a config file's defaults but didn't touch your customized copy. Review each file listed below (run 'sudo pacdiff' in a terminal, or diff them by hand) — this won't happen automatically, since merging config files by mistake can break things."
+    },
+    "orphans": {
+      "ok-title": "No orphaned packages",
+      "ok-detail": "Nothing leftover to clean up.",
+      "warn-title": "{count} orphaned package(s)"
+    },
+    "cache-size": {
+      "title": "Package cache is using {size}",
+      "ok-detail": "This is normal — no action needed.",
+      "action-detail": "Old downloaded package files are piling up. Cleaning up keeps the most recent versions and removes the rest.",
+      "no-tool-detail": "Old downloaded package files are piling up. Install 'pacman-contrib' to enable one-click cleanup.",
+      "unavailable-title": "Cache size unknown",
+      "unavailable-detail": "Couldn't read the package cache size right now."
+    },
+    "arch-news": {
+      "ok-title": "No unread Arch news",
+      "ok-detail": "You're caught up.",
+      "warn-title": "Unread Arch news",
+      "warn-detail": "Arch sometimes needs a manual step before a big update. Read the news before your next update to be safe.",
+      "unavailable-title": "Arch news check unavailable",
+      "unavailable-detail": "Install 'informant' to get warned before an update needs a manual step."
+    }
+  },
+  "settings": {
+    "poll-interval-minutes": {
+      "label": "Check interval (minutes)",
+      "description": "How often to re-run the maintenance checklist in the background."
+    }
+  }
+}

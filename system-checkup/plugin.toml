@@ -1,0 +1,34 @@
+id           = "rnguyen03/system-checkup"
+name         = "System Checkup"
+version      = "0.1.0"
+plugin_api   = 22
+author       = "rnguyen03"
+license      = "MIT"
+icon         = "clipboard-check"
+description  = "A plain-language maintenance checklist for Arch Linux: failed services, log size, unmerged configs, orphaned packages, and more."
+tags         = ["bar", "panel", "service", "system", "productivity", "utility"]
+dependencies = ["jq", "pkexec", "pacman-contrib", "informant"]
+
+[[setting]]
+key     = "poll-interval-minutes"
+type    = "int"
+label_key = "settings.poll-interval-minutes.label"
+description_key = "settings.poll-interval-minutes.description"
+default = 15
+min = 1
+
+[[widget]]
+id = "widget"
+entry = "src/widget.luau"
+
+[[panel]]
+id = "panel"
+entry = "src/panel.luau"
+placement = "attached"
+open_near_click = true
+width = 440
+height = 560
+
+[[service]]
+id = "service"
+entry = "src/service.luau"
