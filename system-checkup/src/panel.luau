@@ -33,30 +33,39 @@ end
 
 local function renderItem(id, item)
     local glyph, color = statusGlyph(item.status)
-    local rows = {
-        ui.row({ align = "center", gap = 8 }, {
-            ui.glyph({ name = glyph, color = color }),
-            ui.label({
-                text = item.title,
-                fontSize = 14,
-                fontWeight = "medium",
-                flexGrow = 1,
-                color = "on_surface",
-            }),
-            item.actionId and ui.button({
-                text = item.actionLabel,
-                variant = "outline",
-                controlSize = "sm",
-                onClick = function() request(item.actionId) end,
-            }) or nil,
-            ui.button({
-                glyph = item.muted and "eye" or "eye-off",
-                variant = "ghost",
-                controlSize = "sm",
-                tooltip = item.muted and noctalia.tr("button.undismiss") or noctalia.tr("button.dismiss"),
-                onClick = function() request((item.muted and "undismiss:" or "dismiss:") .. id) end,
-            }),
+
+    -- Built incrementally, not as a table literal with a conditional element
+    -- in the middle: `{a, b, cond and x or nil, d}` leaves a real hole at
+    -- that index that the UI tree walker chokes on ("ui tree node is not a
+    -- table") whenever a later element follows it -- confirmed live.
+    local headerChildren = {
+        ui.glyph({ name = glyph, color = color }),
+        ui.label({
+            text = item.title,
+            fontSize = 14,
+            fontWeight = "medium",
+            flexGrow = 1,
+            color = "on_surface",
         }),
+    }
+    if item.actionId then
+        table.insert(headerChildren, ui.button({
+            text = item.actionLabel,
+            variant = "outline",
+            controlSize = "sm",
+            onClick = function() request(item.actionId) end,
+        }))
+    end
+    table.insert(headerChildren, ui.button({
+        glyph = item.muted and "eye" or "eye-off",
+        variant = "ghost",
+        controlSize = "sm",
+        tooltip = item.muted and noctalia.tr("button.undismiss") or noctalia.tr("button.dismiss"),
+        onClick = function() request((item.muted and "undismiss:" or "dismiss:") .. id) end,
+    }))
+
+    local rows = {
+        ui.row({ align = "center", gap = 8 }, headerChildren),
         ui.label({
             text = item.detail,
             fontSize = 12,
@@ -201,28 +210,32 @@ function render()
     end
     table.insert(sections, renderLogActivity())
 
-    panel.render(ui.column({ flexGrow = 1, gap = 16 }, {
-        ui.row({ align = "center", gap = 8 }, {
-            ui.glyph({ name = "clipboard-check", color = "primary" }),
-            ui.label({
-                text = noctalia.tr("title"),
-                fontSize = 18,
-                fontWeight = "bold",
-                flexGrow = 1,
-                color = "on_surface",
-            }),
-            snapshot and snapshot.checkedAt and ui.label({
-                text = noctalia.tr("field.checked-at", { time = snapshot.checkedAt }),
-                fontSize = 11,
-                color = "on_surface_variant",
-            }) or nil,
-            ui.button({
-                glyph = "refresh",
-                variant = "ghost",
-                controlSize = "sm",
-                onClick = function() request("refresh") end,
-            }),
+    local titleRow = {
+        ui.glyph({ name = "clipboard-check", color = "primary" }),
+        ui.label({
+            text = noctalia.tr("title"),
+            fontSize = 18,
+            fontWeight = "bold",
+            flexGrow = 1,
+            color = "on_surface",
         }),
+    }
+    if snapshot and snapshot.checkedAt then
+        table.insert(titleRow, ui.label({
+            text = noctalia.tr("field.checked-at", { time = snapshot.checkedAt }),
+            fontSize = 11,
+            color = "on_surface_variant",
+        }))
+    end
+    table.insert(titleRow, ui.button({
+        glyph = "refresh",
+        variant = "ghost",
+        controlSize = "sm",
+        onClick = function() request("refresh") end,
+    }))
+
+    panel.render(ui.column({ flexGrow = 1, gap = 16 }, {
+        ui.row({ align = "center", gap = 8 }, titleRow),
         ui.scroll({ flexGrow = 1, gap = 16 }, sections),
     }))
 end
