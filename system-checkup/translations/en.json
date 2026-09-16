@@ -51,10 +51,12 @@
     "arch-news": {
       "ok-title": "No unread Arch news",
       "ok-detail": "You're caught up.",
-      "warn-title": "Unread Arch news",
+      "warn-title": "{count} unread Arch news item(s)",
       "warn-detail": "Arch sometimes needs a manual step before a big update. Read the news before your next update to be safe.",
       "unavailable-title": "Arch news check unavailable",
-      "unavailable-detail": "Install 'informant' to get warned before an update needs a manual step."
+      "unavailable-detail": "Install 'informant' to get warned before an update needs a manual step.",
+      "failed-title": "Couldn't check Arch news",
+      "failed-detail": "The news feed check failed (often just a temporary network hiccup) — it'll try again on the next check."
     }
   },
   "settings": {

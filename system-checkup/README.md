@@ -62,7 +62,13 @@ since merging config files automatically can break things.
 - Every check trusts command *output*, not exit code — `find`, `du`, and
   `pacman -Qtdq` can all return a non-zero exit code for reasons unrelated to
   whether the check actually worked (e.g. permission-denied subdirectories),
-  confirmed while building this against a real machine.
+  confirmed while building this against a real machine. The Arch-news check
+  is the inverse case: `informant check`'s exit code doubles as the unread
+  count, but if its live feed fetch itself fails (its cache lives under
+  `/var/cache/informant`, so an unprivileged run always fetches live — a rate
+  limit or network hiccup is enough), it prints `ERROR:` to stderr and still
+  exits 0. Confirmed live, and handled by checking stderr for `ERROR` before
+  trusting the exit code as "0 unread" rather than "check failed."
 - Dismissing an item just quiets that row (and excludes it from the bar
   badge's count) until you un-dismiss it — it doesn't change anything on
   your system.

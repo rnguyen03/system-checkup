@@ -247,15 +247,28 @@ local function checkArchNews()
         publish()
         return
     end
-    -- informant is a pacman hook that exits non-zero to block a transaction
-    -- when there's unread Arch news; exit 0 means nothing unread. (Based on
-    -- informant's documented design -- not empirically verified on this
-    -- machine, since it isn't installed here. Worth a spot-check once it is.)
+    -- Confirmed live: informant's exit code IS the unread count (its own
+    -- --help says so -- "exit with a positive return code with the number
+    -- of unread items"), not just a nonzero/zero signal. Its cache also
+    -- lives under /var/cache/informant (root-owned, confirmed live), so an
+    -- unprivileged `check` always falls back to a live feed fetch and
+    -- prints a harmless "cache information: Connection broken" warning --
+    -- not this plugin's to fix. What DOES matter: confirmed live that when
+    -- the live feed fetch itself fails (hit an archlinux.org rate limit
+    -- testing this, which returned an nginx error page informant's XML
+    -- parser choked on), informant prints "ERROR: ..." to stderr but still
+    -- exits 0 -- indistinguishable from "genuinely caught up" by exit code
+    -- alone. So stderr containing "ERROR" always means the check itself
+    -- failed, regardless of exit code, and must not be reported as "ok".
     noctalia.runAsync("informant check", function(result)
-        if (result.exitCode or 1) == 0 then
+        local failed = (result.stderr or ""):find("ERROR") ~= nil
+        local count = result.exitCode or 0
+        if failed then
+            setItem("arch-news", "maintenance", "unavailable", tr("item.arch-news.failed-title"), tr("item.arch-news.failed-detail"))
+        elseif count == 0 then
             setItem("arch-news", "maintenance", "ok", tr("item.arch-news.ok-title"), tr("item.arch-news.ok-detail"))
         else
-            setItem("arch-news", "maintenance", "warn", tr("item.arch-news.warn-title"), tr("item.arch-news.warn-detail"),
+            setItem("arch-news", "maintenance", "warn", tr("item.arch-news.warn-title", { count = count }), tr("item.arch-news.warn-detail"),
                 { actionId = "mark-news-read", actionLabel = tr("action.mark-news-read") })
         end
         publish()
@@ -337,7 +350,13 @@ local function vacuumLogs()
 end
 
 local function markNewsRead()
-    noctalia.runAsync("pkexec informant read", function()
+    -- --all is required: `informant read` with no item loops interactively,
+    -- printing each item with a "prompt to continue" -- confirmed against
+    -- --help -- which would hang forever with no attached stdin. pkexec is
+    -- required too: informant's readlist lives under /var/cache/informant
+    -- (root-owned), confirmed live -- an unprivileged run can still *check*
+    -- (falls back to a live feed fetch) but can't persist a read marker.
+    noctalia.runAsync("pkexec informant read --all", function()
         checkArchNews()
     end)
 end
