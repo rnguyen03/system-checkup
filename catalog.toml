@@ -11,8 +11,8 @@
 [[plugin]]
 id = "rnguyen03/system-checkup"
 name = "System Checkup"
-version = "0.1.1"
-updated_at = 1789532070
+version = "0.2.0"
+updated_at = 1789538758
 added_at = 1789530402
 author = "rnguyen03"
 license = "MIT"
