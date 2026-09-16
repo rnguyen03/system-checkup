@@ -1,6 +1,6 @@
 id           = "rnguyen03/system-checkup"
 name         = "System Checkup"
-version      = "0.1.0"
+version      = "0.1.1"
 plugin_api   = 22
 author       = "rnguyen03"
 license      = "MIT"
